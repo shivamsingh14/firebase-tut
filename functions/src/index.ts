@@ -1,15 +1,28 @@
-// import * as functions from "firebase-functions";
+import express from 'express';
+import cors from 'cors';
+import swagger from 'swagger-ui-express';
+import container, { ContainerTypes } from './container';
+import { IControllerBase } from './controllers/IControllerBase';
+import { blockInterval, harvest } from './services/GasService';
+import swaggerFile from './swagger_output.json';
 
+const listenPort = process.env.PORT || 3000;
+const app = express();
+app.use(cors());
 
-// export const helloWorld = functions.https.onRequest((request, response) => {
-//   functions.logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase! TS3");
-// });
+// Get all controllers and register all endpoints.
+const controllers: IControllerBase[] = container.getAll<IControllerBase>(ContainerTypes.Controller);
+controllers.forEach((controller) => controller.register(app));
 
-
-import * as functions from 'firebase-functions'
-import * as express from 'express'
-
-const app = express()
-app.get('/shivam', (req, res) => res.status(200).send('Hey there!'))
-exports.app = functions.https.onRequest(app)
+app.use('/', swagger.serve, swagger.setup(swaggerFile));
+app.listen(listenPort, () => {
+  console.log('Server is listening on port ', listenPort);
+  harvest('shibuya');
+  harvest('shiden');
+  harvest('astar');
+  setInterval(() => {
+    harvest('shibuya');
+    harvest('shiden');
+    harvest('astar');
+}, blockInterval);
+});
